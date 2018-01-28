@@ -1,12 +1,16 @@
 import React, { Component } from 'react';
-import { View, Text, StyleSheet, StatusBar, TextInput } from 'react-native';
+import { View, Text, StyleSheet, StatusBar, TextInput, AsyncStorage } from 'react-native';
 import { iOSColors, human, systemWeights } from 'react-native-typography';
 import LinearGradient from 'react-native-linear-gradient';
 import Touchable from '@appandflow/touchable';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { LoginManager } from 'react-native-fbsdk';
+import { LoginManager, AccessToken } from 'react-native-fbsdk';
+import gql from 'graphql-tag';
+import { graphql } from 'react-apollo';
 
 import { fonts } from '../../utils/themes';
+import { startMainApp } from '../../Nav'
+import { authToken } from '../../utils/constants'
 
 const COLORS_GRADIENTS = ['#74398D', '#56499E'];
 
@@ -129,10 +133,34 @@ class LoginScreen extends Component {
   state = {};
 
   _onLoginFbPress = async () => {
-    const res = await LoginManager.logInWithReadPermissions(['public_profile']);
+    const res = await LoginManager.logInWithReadPermissions(['email', 'public_profile']);
+
+    if (res.grantedPermissions && !res.isCancelled) {
+      const data = await AccessToken.getCurrentAccessToken();
+
+      console.log('data', data);
+
+      if (data) {
+        const serverResponse = await this.props.loginMutation({
+          variables: {
+            provider: 'FACEBOOK',
+            token: data.accessToken,
+          },
+        });
+
+        const { token } = serverResponse.data.login;
+
+        await AsyncStorage.setItem(authToken, token);
+
+        startMainApp();
+      }
+    }
   };
 
   render() {
+    console.log('====================================');
+    console.log('this.props', this.props);
+    console.log('====================================');
     return (
       <View style={styles.root}>
         <StatusBar barStyle="light-content" />
@@ -203,4 +231,12 @@ class LoginScreen extends Component {
   }
 }
 
-export default LoginScreen;
+const loginMutation = gql`
+  mutation($provider: Provider, $token: String) {
+    login(provider: $provider, token: $token) {
+      token
+    }
+  }
+`;
+
+export default graphql(loginMutation, { name: 'loginMutation' })(LoginScreen);
