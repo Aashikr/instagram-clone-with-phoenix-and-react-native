@@ -25,6 +25,9 @@ export function startMainApp() {
         screen: 'instagramclone.FeedsScreen',
         title: 'Instagram',
         icon: iconsMap.home,
+        navigatorStyle: {
+          navBarButtonColor: '#333',
+        },
       },
       {
         label: 'Explore',
